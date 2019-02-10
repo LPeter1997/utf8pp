@@ -112,4 +112,8 @@ inline constexpr utf8_ssize parse_next(utf8_byte const* src) noexcept {
 
 } /* namespace utf8pp */
 
+#undef UTF8PP_WINDOWS
+#undef UTF8PP_LINUX
+#undef UTF8PP_OSX
+
 #endif /* PETER_LENKEFI_UTF8PP_HPP */
