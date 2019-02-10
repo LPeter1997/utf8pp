@@ -11,6 +11,7 @@
 #ifndef PETER_LENKEFI_UTF8PP_HPP
 #define PETER_LENKEFI_UTF8PP_HPP
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 
@@ -41,10 +42,17 @@
 namespace utf8pp {
 
 /**
+ * Assertion.
+ */
+#define utf8pp_assert(x, msg) assert((x) && msg)
+#define utf8pp_panic(msg) utf8pp_assert(false, msg);
+
+/**
  * Our primitive types.
  */
 using utf8_byte = std::uint8_t;
 using utf8_ssize = std::int32_t;
+using utf8_cp = std::uint32_t;
 
 /**
  * Here we define the error codes.
@@ -92,23 +100,68 @@ inline constexpr utf8_ssize parse_next(utf8_byte const* src) noexcept {
     // End-of-string
     if (src[0] == '\0') return 0;
     // The MSB is 0, so it's a single-byte character
-    if (src[0] < 0x80) return 1;
+    if (src[0] < 0b10000000) return 1;
     // Must be at least 0b11000000 and at most 0b11110111
-    if (src[0] < 0xc0 || src[0] > 0xf7) return error::invalid_utf8;
+    if (src[0] < 0b11000000 || src[0] > 0b11110111) return error::invalid_utf8;
     // 2-byte encoding
     if (detail::next_byte_bad(src[1])) return error::invalid_utf8;
-    if (src[0] < 0xe0) {
+    if (src[0] < 0b11100000) {
         return 2;
     }
     // 3-byte encoding
     if (detail::next_byte_bad(src[2])) return error::invalid_utf8;
-    if (src[0] < 0xf0) {
+    if (src[0] < 0b11110000) {
         return 3;
     }
     // 4-byte encoding
     if (detail::next_byte_bad(src[3])) return error::invalid_utf8;
     return 4;
 }
+
+/**
+ * Reads the next codepoint from the byte sequence.
+ * @param src The pointer to the start of the source string. @see parse_next
+ * @param dest The reference to write the results to. If there was an error (or
+ * the string terminated) a null terminator is written.
+ * @return @see parse_next
+ */
+inline constexpr utf8_ssize
+read_next(utf8_byte const* src, utf8_cp& dest) noexcept {
+    dest = '\0';
+    auto result = parse_next(src);
+    if (result <= 0) return result;
+
+    switch (result) {
+    case 1: {
+        dest = utf8_cp(src[0]);
+    } break;
+
+    case 2: {
+        dest = ((utf8_cp(src[0]) & 0b00011111) << 6)
+             | (utf8_cp(src[1]) & 0b00111111);
+    } break;
+
+    case 3: {
+        dest = ((utf8_cp(src[0]) & 0b00001111) << 12)
+             | ((utf8_cp(src[1]) & 0b00111111) << 6)
+             | (utf8_cp(src[2]) & 0b00111111);
+    } break;
+
+    case 4: {
+        dest = ((utf8_cp(src[0]) & 0b00000111) << 18)
+             | ((utf8_cp(src[1]) & 0b00111111) << 12)
+             | ((utf8_cp(src[2]) & 0b00111111) << 6)
+             | (utf8_cp(src[3]) & 0b00111111);
+    } break;
+
+    default: utf8pp_panic("Unreachable!");
+    }
+
+    return result;
+}
+
+#undef utf8pp_assert
+#undef utf8pp_panic
 
 } /* namespace utf8pp */
 
