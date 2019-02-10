@@ -14,6 +14,8 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
+#include <type_traits>
 
 /**
  * Shortcuts for OSes.
@@ -66,6 +68,11 @@ namespace error {
  * Error in UTF8 encoding.
  */
 inline constexpr utf8_ssize invalid_utf8 = -1;
+
+/**
+ * Error in codepoint value.
+ */
+inline constexpr utf8_ssize invalid_codepoint = -2;
 
 } /* namespace error */
 
@@ -215,6 +222,45 @@ read_prev(utf8_byte const* src_start, utf8_byte const* src,
 
     dest = detail::calc_codepoint(src - result, result);
     return result;
+}
+
+/**
+ * Encode a codepoint into UTF8.
+ * @param dst The destination buffer where the encoded character will be
+ * written. The function does not perform any allocations, so the caller must
+ * ensure that there is enough space in the buffer (at most 4 bytes).
+ * @param cp The codepoint to be encoded.
+ * @return The number of written bytes, or the negative error code
+ * error::invalid_codepoint.
+ */
+inline /* constexpr */ utf8_ssize write(utf8_byte* dst, utf8_cp cp) noexcept {
+    // Single-byte
+    if (cp < 0x80) {
+        dst[0] = utf8_byte(cp);
+        return 1;
+    }
+    // 2-byte
+    if (cp < 0x800) {
+        dst[0] = utf8_byte((cp & 0b11111000000) >> 6) | 0b11000000;
+        dst[1] = utf8_byte(cp & 0b111111) | 0b10000000;
+        return 2;
+    }
+    // 3-byte
+    if (cp < 0x10000) {
+        dst[0] = utf8_byte((cp & 0b1111000000000000) >> 12) | 0b11100000;
+        dst[1] = utf8_byte((cp & 0b111111000000) >> 6) | 0b10000000;
+        dst[2] = utf8_byte(cp & 0b111111) | 0b10000000;
+        return 3;
+    }
+    // 4-byte
+    if (cp < 0x110000) {
+        dst[0] = utf8_byte((cp & 0b111000000000000000000) >> 18) | 0b11100000;
+        dst[1] = utf8_byte((cp & 0b111111000000000000) >> 12) | 0b10000000;
+        dst[2] = utf8_byte((cp & 0b111111000000) >> 6) | 0b10000000;
+        dst[3] = utf8_byte(cp & 0b111111) | 0b10000000;
+        return 4;
+    }
+    return error::invalid_codepoint;
 }
 
 #undef utf8pp_assert
