@@ -254,7 +254,7 @@ inline /* constexpr */ utf8_ssize write(utf8_byte* dst, utf8_cp cp) noexcept {
     }
     // 4-byte
     if (cp < 0x110000) {
-        dst[0] = utf8_byte((cp & 0b111000000000000000000) >> 18) | 0b11100000;
+        dst[0] = utf8_byte((cp & 0b111000000000000000000) >> 18) | 0b11110000;
         dst[1] = utf8_byte((cp & 0b111111000000000000) >> 12) | 0b10000000;
         dst[2] = utf8_byte((cp & 0b111111000000) >> 6) | 0b10000000;
         dst[3] = utf8_byte(cp & 0b111111) | 0b10000000;

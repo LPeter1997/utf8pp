@@ -2,6 +2,7 @@ set(UTF8PP_TEST_SOURCES
     catch.hpp
     main.cpp
     parse.cpp
+    write.cpp
 )
 
 add_executable(utf8pp_test ${UTF8PP_TEST_SOURCES})
