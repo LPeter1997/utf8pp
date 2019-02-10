@@ -22,15 +22,28 @@ utf8pp::utf8_ssize test_oracle(utf8pp::utf8_byte const* src) {
     return utf8pp::error::invalid_utf8;
 }
 
+#if 0
 TEST_CASE("determine the byte-length of an utf8-encoded CP", "[parse_next]") {
-    #if 0
     for (std::uint32_t n = 0; n < 0xffffffff; ++n) {
-        auto oracle = test_oracle((utf8pp::utf8_byte*)&n);
-        auto fn = utf8pp::parse_next((utf8pp::utf8_byte*)&n);
+        utf8pp::utf8_byte const* str = (utf8pp::utf8_byte*)&n;
+        auto oracle = test_oracle(str);
+        auto fn = utf8pp::parse_next(str);
         REQUIRE(oracle == fn);
     }
-    #endif
 }
+
+TEST_CASE("determine the byte-length of an utf8-encoded CP backwards",
+    "[parse_prev]") {
+    for (std::uint32_t n = 0; n < 0xffffffff; ++n) {
+        utf8pp::utf8_byte const* str = (utf8pp::utf8_byte*)&n;
+        auto fn = utf8pp::parse_prev(str, str + sizeof(utf8pp::utf8_byte) * 4);
+        if (fn > 0) {
+            auto oracle = test_oracle(str + sizeof(utf8pp::utf8_byte) * 4 - fn);
+            REQUIRE(oracle == fn);
+        }
+    }
+}
+#endif
 
 TEST_CASE("read CPs from utf8-encoded strings", "[read_next]") {
     char const* test_str =
