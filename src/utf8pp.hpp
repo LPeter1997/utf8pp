@@ -45,13 +45,14 @@ namespace utf8pp {
  * Assertion.
  */
 #define utf8pp_assert(x, msg) assert((x) && msg)
-#define utf8pp_panic(msg) utf8pp_assert(false, msg);
+#define utf8pp_panic(msg) utf8pp_assert(false, msg)
 
 /**
  * Our primitive types.
  */
 using utf8_byte = std::uint8_t;
 using utf8_ssize = std::int32_t;
+using utf8_usize = std::size_t;
 using utf8_cp = std::uint32_t;
 
 /**
@@ -77,6 +78,42 @@ inline constexpr bool next_byte_bad(utf8_byte b) noexcept {
     return b < 0x80 || b > 0xbf;
 }
 
+/**
+ * Calculates the codepoint for a given length.
+ */
+inline /* constexpr */ utf8_cp
+calc_codepoint(utf8_byte const* src, utf8_usize len) noexcept {
+    utf8pp_assert(1 <= len && len <= 4,
+        "The length of a unicode codepoint ban only be 1 to 4 bytes!");
+
+    switch (len) {
+    case 1: {
+        return utf8_cp(src[0]);
+    } break;
+
+    case 2: {
+        return ((utf8_cp(src[0]) & 0b00011111) << 6)
+             | (utf8_cp(src[1]) & 0b00111111);
+    } break;
+
+    case 3: {
+        return ((utf8_cp(src[0]) & 0b00001111) << 12)
+             | ((utf8_cp(src[1]) & 0b00111111) << 6)
+             | (utf8_cp(src[2]) & 0b00111111);
+    } break;
+
+    case 4: {
+        return ((utf8_cp(src[0]) & 0b00000111) << 18)
+             | ((utf8_cp(src[1]) & 0b00111111) << 12)
+             | ((utf8_cp(src[2]) & 0b00111111) << 6)
+             | (utf8_cp(src[3]) & 0b00111111);
+    } break;
+    }
+
+    utf8pp_panic("Unreachable!");
+    return utf8_cp(0);
+}
+
 } /* namespace detail */
 
 /**
@@ -96,7 +133,7 @@ inline void set_stdout_utf8() {
  * UTF8 codepoint if valid (1 <= no. bytes <= 4), or the negative error code
  * error::invalid_utf8.
  */
-inline constexpr utf8_ssize parse_next(utf8_byte const* src) noexcept {
+inline /* constexpr */ utf8_ssize parse_next(utf8_byte const* src) noexcept {
     // End-of-string
     if (src[0] == '\0') return 0;
     // The MSB is 0, so it's a single-byte character
@@ -125,38 +162,14 @@ inline constexpr utf8_ssize parse_next(utf8_byte const* src) noexcept {
  * the string terminated) a null terminator is written.
  * @return @see parse_next
  */
-inline constexpr utf8_ssize
+inline /* constexpr */ utf8_ssize
 read_next(utf8_byte const* src, utf8_cp& dest) noexcept {
     dest = '\0';
+
     auto result = parse_next(src);
     if (result <= 0) return result;
 
-    switch (result) {
-    case 1: {
-        dest = utf8_cp(src[0]);
-    } break;
-
-    case 2: {
-        dest = ((utf8_cp(src[0]) & 0b00011111) << 6)
-             | (utf8_cp(src[1]) & 0b00111111);
-    } break;
-
-    case 3: {
-        dest = ((utf8_cp(src[0]) & 0b00001111) << 12)
-             | ((utf8_cp(src[1]) & 0b00111111) << 6)
-             | (utf8_cp(src[2]) & 0b00111111);
-    } break;
-
-    case 4: {
-        dest = ((utf8_cp(src[0]) & 0b00000111) << 18)
-             | ((utf8_cp(src[1]) & 0b00111111) << 12)
-             | ((utf8_cp(src[2]) & 0b00111111) << 6)
-             | (utf8_cp(src[3]) & 0b00111111);
-    } break;
-
-    default: utf8pp_panic("Unreachable!");
-    }
-
+    dest = detail::calc_codepoint(src, result);
     return result;
 }
 
