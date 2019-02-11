@@ -233,7 +233,8 @@ read_prev(utf8_byte const* src_start, utf8_byte const* src,
  * @return The number of written bytes, or the negative error code
  * error::invalid_codepoint.
  */
-inline /* constexpr */ utf8_ssize write(utf8_byte* dst, utf8_cp cp) noexcept {
+inline /* constexpr */ utf8_ssize
+encode_cp(utf8_byte* dst, utf8_cp cp) noexcept {
     // Single-byte
     if (cp < 0x80) {
         dst[0] = utf8_byte(cp);
